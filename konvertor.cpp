@@ -89,6 +89,40 @@ counter=0;
 while(*str) {if (*str==',') counter++; if (counter==9) {*str++='\n'; *str=0; return; } else str++; }
 }
 
+void changeorder(char *str,int elementtype)//elementtype: CPS3=3,CPS6=6,CPS4=4,CPS8=8,change the element node order into calculix node order
+{
+	int temp[9];
+	switch(elementtype)
+	{
+		case 3:
+		{
+			sscanf(str,"%i,%i,%i,%i",&temp[0],&temp[1],&temp[2],&temp[3]);
+			sprintf(str,"%i,%i,%i,%i\n",temp[0],temp[1],temp[3],temp[2]);
+			break;
+		}
+		case 4:
+		{
+			sscanf(str,"%i,%i,%i,%i,%i",&temp[0],&temp[1],&temp[2],&temp[3],&temp[4]);
+			sprintf(str,"%i,%i,%i,%i,%i\n",temp[0],temp[1],temp[4],temp[3],temp[2]);
+			break;
+		}
+		case 6:
+		{
+			sscanf(str,"%i,%i,%i,%i,%i,%i,%i",&temp[0],&temp[1],&temp[2],&temp[3],&temp[4],&temp[5],&temp[6]);
+			sprintf(str,"%i,%i,%i,%i,%i,%i,%i\n",temp[0],temp[1],temp[3],temp[2],temp[6],temp[5],temp[4]);
+			break;
+		}
+		case 8:
+		{
+			sscanf(str,"%i,%i,%i,%i,%i,%i,%i,%i,%i",&temp[0],&temp[1],&temp[2],&temp[3],&temp[4],&temp[5],&temp[6],&temp[7],&temp[8]);
+			sprintf(str,"%i,%i,%i,%i,%i,%i,%i,%i,%i\n",temp[0],temp[1],temp[4],temp[3],temp[2],temp[8],temp[7],temp[6],temp[5]);
+			break;
+		}
+		default:
+			break;
+	}
+}
+
 int is_nondigit(char c)
 {
 if ((c>='0')&&(c<='9')) return 0;
@@ -109,7 +143,7 @@ FILE *fp, *fo;
 char buf [BUFSIZE], buf2 [BUFSIZE], tmp_buf[BUFSIZE];
 int i, l, status;
 
-status=0; // 0 - status "zero" ("others sections"), 1 - section "NODE", 2 - section type=S4
+status=0; // 0 - status "zero" ("others sections"), 1 - section "NODE", 2 - section type=S4, 3 - section type=S3, 4 - section type=S6, 5 - section type=S8,
 
 if ((fp=fopen(filename, "r"))==0) {MESSAGE("prool_process2(): Unable to open input file '%s'", filename); return; }
 if ((fo=fopen(outfile, "w"))==0) {MESSAGE("prool_process2(): Unable to create output file '%s'", filename); return; }
@@ -130,22 +164,75 @@ while(fgets(buf,BUFSIZE,fp))
 #define NODE "*node"
 		if (!memcmp(tmp_buf,NODE,strlen(NODE))) {fputs("*Node,NSET=Nall\n",fo); status=1;}
 		else if (strstr(buf,"type=S4")) 
-			{char strS4[BUFSIZE];
+		{
+			char strS4[BUFSIZE];
 			strcpy(strS4,buf);
 			fgets(buf,BUFSIZE,fp);
-			if (commas9(buf)) {replace (strS4,"type=S4", "type=S8R"); delete9(buf);}
+			if (commas9(buf)) 
+			{
+				replace (strS4,"type=S4", "type=S8R"); 
+				delete9(buf); 
+				changeorder(buf,8);
+				status=5;
+			}
+			else
+			{
+				changeorder(buf,4);
+				status=2;
+			}
 			fputs(strS4, fo);
 			fputs(buf, fo);
-			status=2;
-			}
+			//status=2;
+		}
+		else if (strstr(buf,"type=S3"))
+		{
+			char strS3[BUFSIZE];
+			strcpy(strS3,buf);
+			fgets(buf,BUFSIZE,fp);
+			changeorder(buf,3);
+			fputs(strS3, fo);
+			fputs(buf, fo);
+			status=3;
+		}
+		else if(strstr(buf,"type=S6"))
+		{
+			char strS6[BUFSIZE];
+			strcpy(strS6,buf);
+			fgets(buf,BUFSIZE,fp);
+			changeorder(buf,6);
+			fputs(strS6, fo);
+			fputs(buf, fo);
+			status=4;
+		}
 		else {status=0; fputs(buf, fo);}
 		}
 	else
+	{
 		switch (status)
 		{
-		case 1: exponentization(buf);
-		case 2: delete9(buf);
+		case 1: 
+		{
+			exponentization(buf);break;
+		}
+		case 2: 
+		{
+			changeorder(buf,4);break;
+		}
+		case 3: 
+		{
+			changeorder(buf,3);break;
+		}
+		case 4: 
+		{
+			changeorder(buf,6);break;
+		}
+		case 5:
+		{
+			delete9(buf);changeorder(buf,8);break;
+		}
 		default: fputs(buf, fo);
+		}
+		fputs(buf, fo);
 		}
 	}
 fclose(fp);
